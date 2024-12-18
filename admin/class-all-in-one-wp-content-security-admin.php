@@ -298,7 +298,7 @@ class All_In_One_WP_Content_Security_Admin
 								<table class="wp-list-table widefat fixed striped table-view-list">
 									<tbody id="the-list">
 										<tr>
-											<td><a href="https://rzp.io/l/maheshmthorat" target="_blank"><img width="160" src="<?php echo esc_url(plugin_dir_url(dirname(__FILE__))); ?>admin/assets/img/razorpay.svg" /></a></td>
+											<td><a href="https://buymeacoffee.com/maheshmthorat" target="_blank"><img width="160" src="<?php echo esc_url(plugin_dir_url(dirname(__FILE__))); ?>admin/assets/img/razorpay.svg" /></a></td>
 										</tr>
 										<tr>
 											<td>
@@ -472,7 +472,7 @@ class All_In_One_WP_Content_Security_Admin
 	public function aowpcs_settings_link($links)
 	{
 		$url = get_admin_url() . 'options-general.php?page=all-in-one-wp-content-security-admin';
-		$settings_link = ["<a href='$url'>" . __('Settings') . '</a>', "<a href='https://rzp.io/l/maheshmthorat' target='_blank'>Say Thanks</a>"];
+		$settings_link = ["<a href='$url'>" . __('Settings') . '</a>', "<a href='https://buymeacoffee.com/maheshmthorat' target='_blank'>Say Thanks</a>"];
 		$links = array_merge(
 			$settings_link,
 			$links
