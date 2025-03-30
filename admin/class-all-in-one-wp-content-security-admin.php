@@ -52,7 +52,7 @@ class All_In_One_WP_Content_Security_Admin
 		if ((isset($_POST['all-in-one-wp-content-security-update-option'])) && ($_POST['all-in-one-wp-content-security-update-option'] == 'true')
 			&& check_admin_referer('pwm-referer-form', 'pwm-referer-option')
 		) {
-			$opts = array('block_selection' => 'off', 'block_image_dragging' => 'off', 'loadtime' => 'off', 'block_hacking_website' => 'off');
+			$opts = array('block_selection' => 'off', 'block_image_dragging' => 'off', 'loadtime' => 'off', 'block_hacking_website' => 'off', 'enhanced_web_security' => 'off');
 
 			if (isset($_POST['_all_in_one_wp_content_security']['block_selection'])) {
 				$opts['block_selection'] = 'on';
@@ -66,6 +66,20 @@ class All_In_One_WP_Content_Security_Admin
 			if (isset($_POST['_all_in_one_wp_content_security']['block_hacking_website'])) {
 				$opts['block_hacking_website'] = 'on';
 			}
+			if (isset($_POST['_all_in_one_wp_content_security']['enhanced_web_security'])) {
+				$opts['enhanced_web_security'] = 'on';
+				self::update_htaccess_security_headers(true);
+			} else {
+				$opts['enhanced_web_security'] = 'off';
+				self::update_htaccess_security_headers(false);
+			}
+			if (isset($_POST['_all_in_one_wp_content_security']['disable_xmlrpc'])) {
+				$opts['disable_xmlrpc'] = 'on';
+				self::update_htaccess_xmlrpc_restriction(true);
+			} else {
+				$opts['disable_xmlrpc'] = 'off';
+				self::update_htaccess_xmlrpc_restriction(false);
+			}
 
 			update_option('_all_in_one_wp_content_security', $opts);
 			$this->notice = array('success', __('Your settings have been successfully updated.', 'all-in-one-wp-content-security'));
@@ -74,6 +88,92 @@ class All_In_One_WP_Content_Security_Admin
 			// die();
 		}
 	}
+
+	public static function check_htaccess_permissions()
+	{
+		$htaccess_file = ABSPATH . '.htaccess'; // Path to .htaccess file
+
+		if (!file_exists($htaccess_file)) {
+			return "Error: .htaccess file does not exist.";
+		}
+
+		$permissions = fileperms($htaccess_file) & 0777; // Get permissions
+		$permissions_octal = sprintf("%o", $permissions); // Convert to octal format
+
+		return $permissions_octal;
+	}
+
+	public static function update_htaccess_security_headers($enable)
+	{
+		$htaccess_file = ABSPATH . '.htaccess'; // Path to .htaccess file
+
+		if (!is_writable($htaccess_file)) {
+			return;
+		}
+
+		$security_headers = <<<EOT
+		# BEGIN All-in-One WP Content Security
+		<IfModule mod_headers.c>
+		Header set X-XSS-Protection "1; mode=block"
+		Header set X-Frame-Options "SAMEORIGIN"
+		Header set X-Content-Type-Options "nosniff"
+		Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains"
+		Header set Referrer-Policy "same-origin"
+		Header set Feature-Policy "geolocation 'self'; vibrate 'none'"
+		Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'"
+		Header set Permissions-Policy "geolocation=(self 'none'); vibrate=(self 'none')"
+		Header always set Access-Control-Allow-Origin "ADD YOUR SITE URL"
+		Header always set Expect-CT "enforce, max-age=86400"
+		</IfModule>
+		# END All-in-One WP Content Security
+		EOT;
+
+		$htaccess_content = file_get_contents($htaccess_file);
+
+		if ($enable) {
+			if (strpos($htaccess_content, '# BEGIN All-in-One WP Content Security') === false) {
+				file_put_contents($htaccess_file, PHP_EOL . $security_headers . PHP_EOL, FILE_APPEND);
+			}
+		} else {
+			$htaccess_content = preg_replace('/# BEGIN All-in-One WP Content Security.*?# END All-in-One WP Content Security/s', '', $htaccess_content);
+			file_put_contents($htaccess_file, $htaccess_content);
+		}
+	}
+
+	public static function update_htaccess_xmlrpc_restriction($enable)
+	{
+		$htaccess_file = ABSPATH . '.htaccess'; // Path to .htaccess file
+
+		if (!file_exists($htaccess_file)) {
+			return "Error: .htaccess file does not exist.";
+		}
+
+		$permissions = fileperms($htaccess_file) & 0777;
+		if ($permissions == 0444) {
+			return "Error: .htaccess file is read-only (444). Please change it to 644 or 755 to allow modifications.";
+		}
+
+		$xmlrpc_rule = <<<EOT
+			# BEGIN XMLRPC Restriction
+			<Files xmlrpc.php>
+			Order Deny,Allow
+			Deny from all
+			</Files>
+			# END XMLRPC Restriction
+			EOT;
+
+		$htaccess_content = file_get_contents($htaccess_file);
+
+		if ($enable) {
+			if (strpos($htaccess_content, '# BEGIN XMLRPC Restriction') === false) {
+				file_put_contents($htaccess_file, PHP_EOL . $xmlrpc_rule . PHP_EOL, FILE_APPEND);
+			}
+		} else {
+			$htaccess_content = preg_replace('/# BEGIN XMLRPC Restriction.*?# END XMLRPC Restriction/s', '', $htaccess_content);
+			file_put_contents($htaccess_file, $htaccess_content);
+		}
+	}
+
 
 	/**
 	 * Return the `Options` page
@@ -137,12 +237,14 @@ class All_In_One_WP_Content_Security_Admin
 
 											<div class="field">
 												<?php $fieldID = uniqid(); ?>
-												<span class="label"><span class="dashicons dashicons-format-image"></span> <?php echo esc_html(__('Block Image Dragging', 'all-in-one-wp-content-security')); ?></span>
+												<span class="label">
+													<span class="dashicons dashicons-format-image"></span>
+													<?php echo esc_html(__('Block Image Dragging', 'all-in-one-wp-content-security')); ?>
+												</span>
 												<label class="switchContainer">
-													<input id="<?php echo esc_attr($fieldID); ?>" type="checkbox" name="_all_in_one_wp_content_security[block_image_dragging]" class="onoffswitch-checkbox" <?php if ((isset($opts['block_image_dragging'])) && ($opts['block_image_dragging'] == 'on')) {
-																																																																	echo 'checked="checked"';
-																																																																} ?> />
-													<span for="<?php echo esc_attr($fieldID); ?>" class="sliderContainer round"></span>
+													<input id="<?php echo esc_attr($fieldID); ?>" type="checkbox" name="_all_in_one_wp_content_security[block_image_dragging]" class="onoffswitch-checkbox"
+														<?php echo !empty($opts['block_image_dragging']) && $opts['block_image_dragging'] === 'on' ? 'checked' : ''; ?> />
+													<span class="sliderContainer round"></span>
 												</label>
 												<div class="small">
 													<small><?php echo esc_html(__('It will prevent users to stop image Drag and Drop outside website?', 'all-in-one-wp-content-security')); ?></small>
@@ -151,21 +253,23 @@ class All_In_One_WP_Content_Security_Admin
 
 											<div class="field">
 												<?php $fieldID = uniqid(); ?>
-												<span class="label"><span class="dashicons dashicons-welcome-widgets-menus"></span> <?php echo esc_html(__('Block Right Clicking', 'all-in-one-wp-content-security')); ?></span>
+												<span class="label">
+													<span class="dashicons dashicons-welcome-widgets-menus"></span>
+													<?php echo esc_html(__('Block Right Clicking', 'all-in-one-wp-content-security')); ?>
+												</span>
 												<label class="switchContainer">
-													<input id="<?php echo esc_attr($fieldID); ?>" type="checkbox" name="_all_in_one_wp_content_security[block_right_clicking]" class="onoffswitch-checkbox" <?php if ((isset($opts['block_right_clicking'])) && ($opts['block_right_clicking'] == 'on')) {
-																																																																	echo 'checked="checked"';
-																																																																} ?> />
-													<span for="<?php echo esc_attr($fieldID); ?>" class="sliderContainer round"></span>
+													<input id="<?php echo esc_attr($fieldID); ?>" type="checkbox" name="_all_in_one_wp_content_security[block_right_clicking]" class="onoffswitch-checkbox"
+														<?php echo !empty($opts['block_right_clicking']) && $opts['block_right_clicking'] === 'on' ? 'checked' : ''; ?> />
+													<span class="sliderContainer round"></span>
 												</label>
 												<div class="small">
-													<small><?php echo esc_html(__('It will prevent users for being clicked using right or restricted for context menu', 'all-in-one-wp-content-security')); ?></small>
+													<small><?php echo esc_html(__('It will prevent users from right-clicking or accessing the context menu', 'all-in-one-wp-content-security')); ?></small>
 												</div>
 											</div>
 
 											<div class="field">
 												<?php $fieldID = uniqid(); ?>
-												<span class="label"><span class="dashicons dashicons-lock"></span> <?php echo esc_html(__('Block Console / Inspect Element', 'all-in-one-wp-content-security')); ?></span>
+												<span class="label"><span class="dashicons dashicons-admin-network"></span> <?php echo esc_html(__('Block Console / Inspect Element', 'all-in-one-wp-content-security')); ?></span>
 												<label class="switchContainer">
 													<input id="<?php echo esc_attr($fieldID); ?>" type="checkbox" name="_all_in_one_wp_content_security[block_hacking_website]" class="onoffswitch-checkbox" <?php if ((isset($opts['block_hacking_website'])) && ($opts['block_hacking_website'] == 'on')) {
 																																																																	echo 'checked="checked"';
@@ -174,6 +278,58 @@ class All_In_One_WP_Content_Security_Admin
 												</label>
 												<div class="small">
 													<small><?php echo esc_html(__('** Prevents users from hacking website it blocks Console / Inspect Element', 'all-in-one-wp-content-security')); ?></small>
+												</div>
+											</div>
+
+											<div class="field">
+												<?php $fieldID = uniqid(); ?>
+												<span class="label">
+													<span class="dashicons dashicons-lock"></span>
+													<?php echo esc_html(__('Enhanced Web Security Headers', 'all-in-one-wp-content-security')); ?>
+												</span>
+												<p>
+													<?php
+													$permissions = self::check_htaccess_permissions();
+													if ($permissions == 444) {
+														echo "Please update .htaccess file permission to at least 644 before updating.";
+													}
+													?>
+													Current .htaccess file permissions: <b><?php echo $permissions; ?></b>
+													<br />
+												</p>
+												<label class="switchContainer">
+													<input id="<?php echo esc_attr($fieldID); ?>" type="checkbox" name="_all_in_one_wp_content_security[enhanced_web_security]" class="onoffswitch-checkbox"
+														<?php echo !empty($opts['enhanced_web_security']) && $opts['enhanced_web_security'] === 'on' ? 'checked' : ''; ?> />
+													<span class="sliderContainer round"></span>
+												</label>
+												<div class="small">
+													<small><?php echo esc_html(__('Block unauthorized scripts from executing on your website to prevent malicious activities. Prevent other websites from directly linking to your images, videos, or other media files.', 'all-in-one-wp-content-security')); ?></small>
+												</div>
+											</div>
+
+											<div class="field">
+												<?php $fieldID = uniqid(); ?>
+												<span class="label">
+													<span class="dashicons dashicons-admin-tools"></span>
+													<?php echo esc_html(__('Disable XML-RPC', 'all-in-one-wp-content-security')); ?>
+												</span>
+												<p>
+													<?php
+													$permissions = self::check_htaccess_permissions();
+													if ($permissions == 444) {
+														echo "Please update .htaccess file permission to at least 644 before updating.";
+													}
+													?>
+													Current .htaccess file permissions: <b><?php echo $permissions; ?></b>
+													<br />
+												</p>
+												<label class="switchContainer">
+													<input id="<?php echo esc_attr($fieldID); ?>" type="checkbox" name="_all_in_one_wp_content_security[disable_xmlrpc]" class="onoffswitch-checkbox"
+														<?php echo !empty($opts['disable_xmlrpc']) && $opts['disable_xmlrpc'] === 'on' ? 'checked' : ''; ?> />
+													<span class="sliderContainer round"></span>
+												</label>
+												<div class="small">
+													<small><?php echo esc_html(__('Blocks access to xmlrpc.php, preventing external services and bots from making remote requests to your website. This improves security by reducing the risk of brute-force attacks and DDoS attempts.')); ?></small>
 												</div>
 											</div>
 
@@ -348,7 +504,8 @@ class All_In_One_WP_Content_Security_Admin
 				<style type="text/css">
 					<?php
 					if (@$opts['block_selection'] == 'on') {
-					?>* {
+					?>
+					* {
 						-moz-user-select: none;
 						-webkit-user-select: none;
 						-ms-user-select: none;
@@ -359,14 +516,15 @@ class All_In_One_WP_Content_Security_Admin
 					<?php
 					}
 					if (@$opts['block_image_dragging'] == 'on') {
-					?>img {
+					?>
+					img {
 						pointer-events: none
 					}
-
 					<?php
 					}
 					if (@$opts['block_image_dragging'] == 'on') {
-					?>.console-open {
+					?>
+					.console-open {
 						background: #fafafa;
 						width: 100%;
 					}
@@ -379,7 +537,6 @@ class All_In_One_WP_Content_Security_Admin
 					.console-open a {
 						cursor: pointer;
 					}
-
 					<?php
 					}
 					?>
@@ -406,7 +563,7 @@ class All_In_One_WP_Content_Security_Admin
 					}
 					if (@$opts['block_hacking_website'] == 'on') {
 					?>
-							"use strict";
+						"use strict";
 						let printHTML = '<?php echo wp_kses_post($printHTML); ?>';
 						! function() {
 							function detectDevTool(allow) {
@@ -467,7 +624,6 @@ class All_In_One_WP_Content_Security_Admin
 			}
 		}
 	}
-
 
 	public function aowpcs_settings_link($links)
 	{

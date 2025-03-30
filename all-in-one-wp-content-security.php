@@ -13,7 +13,7 @@
  * Plugin Name: All in one WP Content Protector
  * Plugin URI: https://wordpress.org/plugins/all-in-one-wp-content-security/
  * Description: Protect your WordPress content effortlessly with All in One WP Content Protector. Block elements selection, image drag-and-drop, right-click, copy-paste, and more
- * Version: 1.1
+ * Version: 2.0
  * Author: Mahesh Thorat
  * Author URI: https://maheshthorat.web.app
  **/
@@ -30,7 +30,7 @@ if ((!defined('ABSPATH')) || ('all-in-one-wp-content-security.php' == basename($
  */
 define('AOWPCS_PLUGIN_FULLNAME', 'All in one WP Content Protector');
 define('AOWPCS_PLUGIN_IDENTIFIER', 'all-in-one-wp-content-security');
-define('AOWPCS_PLUGIN_VERSION', '1.1');
+define('AOWPCS_PLUGIN_VERSION', '2.0');
 define('AOWPCS_PLUGIN_LAST_RELEASE', '2022/04/16');
 define('AOWPCS_PLUGIN_LANGUAGES', 'English');
 define('AOWPCS_PLUGIN_ABS_PATH', plugin_dir_path(__FILE__));
