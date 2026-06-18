@@ -4,7 +4,7 @@ Donate Link: https://buymeacoffee.com/maheshmthorat
 Tags: content protection, copy protection, image protection, right-click protection, element selection protection
 Requires at least: 4.5
 Requires PHP: 5.6
-Tested up to: 6.7.2
+Tested up to: 7.0
 Stable tag: 2.0
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
